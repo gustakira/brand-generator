@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +21,7 @@ Opções:
 Exemplos:
   bun run convert
   bun run convert minha-marca
-  npm run convert -- minha-marca --only web
+  bun run convert minha-marca --only web
   bun src/cli.ts convert --root ./outras-marcas
 `;
 

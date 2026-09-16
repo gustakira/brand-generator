@@ -1,20 +1,26 @@
-import { test } from 'node:test';
-import type { TestContext } from 'node:test';
+import { afterEach, test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 import { convertProject } from '../src/converter.js';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 const svg = (width = 64, height = 64) => `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="#ff0000"/></svg>`;
 
-async function fixture(t: TestContext, name = 'marca') {
+const temporaryRoots: string[] = [];
+
+afterEach(async () => {
+  for (const root of temporaryRoots.splice(0)) {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+async function fixture(name = 'marca') {
   const root = await mkdtemp(path.join(os.tmpdir(), 'brand-generator-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  temporaryRoots.push(root);
   const directory = path.join(root, name);
   await mkdir(directory);
   return { root, directory };
@@ -28,8 +34,8 @@ async function dimensions(file: string | Buffer, width: number, height: number, 
   assert.equal(metadata.format, format, label);
 }
 
-test('gera a árvore completa, dimensões corretas, ICO legível e preserva originais', async (t) => {
-  const { directory } = await fixture(t);
+test('gera a árvore completa, dimensões corretas, ICO legível e preserva originais', async () => {
+  const { directory } = await fixture();
   const originals = new Map<string, Buffer>();
   for (const role of ['banner_dark', 'banner_light', 'logo_hor_dark', 'logo_hor_light', 'logo_icon', 'logo_square', 'logo_text', 'logo_square_black']) {
     const wide = /banner|hor|text/.test(role);
@@ -75,8 +81,8 @@ test('gera a árvore completa, dimensões corretas, ICO legível e preserva orig
   assert.equal((await readdir(path.join(directory, '1024'))).length, 8);
 });
 
-test('ícones retangulares recebem transparência sem corte e OG recebe fundo por tema', async (t) => {
-  const { directory } = await fixture(t);
+test('ícones retangulares recebem transparência sem corte e OG recebe fundo por tema', async () => {
+  const { directory } = await fixture();
   await writeFile(path.join(directory, 'logo_icon.svg'), svg(16, 8));
   const result = await convertProject(directory, { only: 'web' });
   assert.equal(result.files.length, 17);
@@ -92,8 +98,8 @@ test('ícones retangulares recebem transparência sem corte e OG recebe fundo po
   }
 });
 
-test('nomes livres, extensão maiúscula e preferência por SVG em duplicatas', async (t) => {
-  const { directory } = await fixture(t);
+test('nomes livres, extensão maiúscula e preferência por SVG em duplicatas', async () => {
+  const { directory } = await fixture();
   await writeFile(path.join(directory, 'Arte.SVG'), svg(10, 20));
   await writeFile(path.join(directory, 'Arte.png'), await sharp(Buffer.from(svg())).png().toBuffer());
   await writeFile(path.join(directory, 'ignorar.txt'), 'sem imagem');
@@ -104,8 +110,8 @@ test('nomes livres, extensão maiúscula e preferência por SVG em duplicatas', 
   await assert.rejects(readdir(path.join(directory, 'web')), { code: 'ENOENT' });
 });
 
-test('projetos vazios e papéis ausentes produzem avisos claros', async (t) => {
-  const { directory } = await fixture(t);
+test('projetos vazios e papéis ausentes produzem avisos claros', async () => {
+  const { directory } = await fixture();
   assert.match((await convertProject(directory)).warnings[0], /Nenhum arquivo/);
   await writeFile(path.join(directory, 'livre.svg'), svg());
   const result = await convertProject(directory);
@@ -113,13 +119,15 @@ test('projetos vazios e papéis ausentes produzem avisos claros', async (t) => {
   assert.equal(result.warnings.length, 3);
 });
 
-test('CLI seleciona projetos, valida opções e continua após um projeto corrompido', async (t) => {
-  const { root, directory } = await fixture(t, 'a-quebrado');
+test('CLI seleciona projetos, valida opções e continua após um projeto corrompido', async () => {
+  const { root, directory } = await fixture('a-quebrado');
   await writeFile(path.join(directory, 'logo_icon.png'), 'invalid png');
   await mkdir(path.join(root, 'b-valido'));
   await writeFile(path.join(root, 'b-valido', 'logo_icon.svg'), svg());
-  const runtimeArgs = process.versions.bun ? [] : ['--import', 'tsx'];
-  const run = (...args: string[]) => spawnSync(process.execPath, [...runtimeArgs, cli, ...args], { encoding: 'utf8' });
+  const run = (...args: string[]) => {
+    const result = Bun.spawnSync([process.execPath, cli, ...args]);
+    return { status: result.exitCode, stdout: result.stdout.toString(), stderr: result.stderr.toString() };
+  };
   assert.equal(run('--help').status, 0);
   assert.match(run('--version').stdout, /^0\.1\.0/);
   assert.equal(run('convert', '..', '--root', root).status, 1);
@@ -135,8 +143,8 @@ test('CLI seleciona projetos, valida opções e continua após um projeto corrom
   assert.match(selected.stdout, /1 arquivo/);
 });
 
-test('não segue links simbólicos para entradas nem para pastas de saída', async (t) => {
-  const { root, directory } = await fixture(t);
+test('não segue links simbólicos para entradas nem para pastas de saída', async () => {
+  const { root, directory } = await fixture();
   const external = path.join(root, 'externo');
   await mkdir(external);
   await writeFile(path.join(external, 'logo.svg'), svg());

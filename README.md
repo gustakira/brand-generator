@@ -1,6 +1,6 @@
 # Brand Generator
 
-Conversor open source de assets de marca, em TypeScript, compatível com **Node.js e Bun**.
+Conversor open source de assets de marca, em TypeScript, executado com **Bun**.
 Coloque seus PNG e SVG em `projetos/<nome>/` e gere versões de 1024 pixels,
 favicons, ícones e imagens para compartilhamento.
 
@@ -8,16 +8,11 @@ Nesta versão, o projeto **converte arquivos existentes**. A geração de novas 
 
 ## Começar
 
-Requisitos: Node.js 22+ ou Bun 1.3+.
+Requisito: Bun 1.3+.
 
 ```bash
-# Com Bun
 bun install
 bun run convert exemplo
-
-# Ou com Node.js
-npm install
-npm run convert -- exemplo
 ```
 
 Os comandos acima convertem o exemplo incluído no repositório. Para sua marca:
@@ -31,10 +26,8 @@ bun run convert minha-marca
 Somente `projetos/exemplo/` é versionado. Os demais projetos e todas as pastas
 de saída `1024/` e `web/` são ignorados pelo Git.
 
-`bun run convert` ou `npm run convert` convertem todos os projetos.
+`bun run convert` converte todos os projetos.
 Para executar TypeScript diretamente com Bun, use `bun src/cli.ts convert`.
-O script `convert` usa `tsx` para executar TypeScript com Node.js; em instalações
-sem Node.js, use o comando direto do Bun acima.
 
 ## Estrutura
 
@@ -143,9 +136,6 @@ bun run convert projectname --only web
 # Outra pasta de projetos (inclusive caminhos com espaços)
 bun run convert --root "./outras marcas"
 
-# Node.js: separe os argumentos com --
-npm run convert -- projectname --only web
-
 # Ajuda
 bun src/cli.ts --help
 ```
@@ -161,7 +151,7 @@ Pastas vazias e fontes web ausentes geram avisos, sem erro fatal.
 
 ## API
 
-Após `npm run build` (ou `bun run build`), importe o módulo compilado:
+Após `bun run build`, importe o módulo compilado em seu script Bun:
 
 ```ts
 import { convertProject, type ConvertOptions } from './dist/converter.js';
@@ -174,14 +164,13 @@ console.log(name, files, warnings);
 ## Desenvolvimento
 
 ```bash
-npm run check  # Verificação de tipos, incluindo os testes
-npm test       # Testes TypeScript no Node.js via tsx
-bun test       # Testes TypeScript diretamente no Bun
-npm run build  # JavaScript ESM e declarações .d.ts em dist/
+bun run check  # Verificação de tipos, incluindo os testes
+bun test       # Testes TypeScript com bun:test
+bun run build  # JavaScript ESM e declarações .d.ts em dist/
 ```
 
 O TypeScript usa modo estrito. O build gera a CLI `dist/cli.js`, executável com
-`node dist/cli.js convert`, e os tipos públicos da API. `dist/` é ignorado pelo Git;
-o empacotamento com `npm pack` compila automaticamente.
+`bun dist/cli.js convert`, e os tipos públicos da API. `dist/` é ignorado pelo Git.
+O comando `bun pm pack` executa o build antes de empacotar.
 
 Veja [CONTRIBUTING.md](CONTRIBUTING.md). Licença [MIT](LICENSE).
