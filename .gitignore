@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+coverage/
+*.tgz
+projetos/*
+!projetos/exemplo/
+!projetos/README.md
+projetos/*/1024/
+projetos/*/web/
