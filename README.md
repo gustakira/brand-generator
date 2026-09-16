@@ -52,6 +52,11 @@ projetos/
     │   ├── favicon-32x32.png
     │   ├── favicon-96x96.png
     │   ├── favicon.ico
+    │   ├── favicon-rounded/
+    │   │   ├── favicon-16x16.png
+    │   │   ├── favicon-32x32.png
+    │   │   ├── favicon-96x96.png
+    │   │   └── favicon.ico
     │   ├── icons/
     │   │   ├── icon-48x48.png
     │   │   ├── icon-72x72.png
@@ -82,9 +87,9 @@ Use o nome da pasta como prefixo (`projectname_logo_icon.svg`) ou apenas o papel
 | --- | --- |
 | `banner_dark`, `banner_light` | Imagens Open Graph por tema |
 | `logo_hor_dark`, `logo_hor_light` | Alternativa ao banner do mesmo tema |
-| `logo_icon` | Fonte preferencial dos ícones web |
-| `logo_square` | Alternativa ao ícone |
-| `logo_square_black` | Última alternativa ao ícone |
+| `logo_icon` | Fonte de `web/favicon-*.png` e `web/favicon.ico` |
+| `logo_square` | Fonte de Android, Apple, `web/icons/` e `web/favicon-rounded/`; alternativa para Open Graph |
+| `logo_square_black` | Versão de 1024 pixels e última alternativa para Open Graph |
 | `logo_text` | Versão de 1024 pixels |
 
 Arquivos com **nomes livres** também são convertidos: `simbolo.svg` vira
@@ -101,18 +106,29 @@ Extensões e identificação dos papéis não diferenciam maiúsculas de minúsc
 | Apple, incluindo `precomposed` | 180×180 |
 | Favicon PNG | 16×16, 32×32 e 96×96 |
 | `favicon.ico` | Frames PNG de 16×16, 32×32 e 48×48 em um contêiner ICO |
+| `web/favicon-rounded/` | PNG de 16×16, 32×32 e 96×96; ICO com frames de 16×16, 32×32 e 48×48 |
 | `web/icons/*.png` | 48, 72, 96, 128, 192, 384 e 512 px, sempre quadrados |
 | Open Graph | 1200×630, WebP com qualidade 90 |
 
-As imagens nunca são esticadas ou cortadas. Um banner de 2400×800 vira
+As imagens mantêm a proporção. Apenas a variante `favicon-rounded` recorta os cantos.
+Um banner de 2400×800 vira
 1024×341; um ícone quadrado vira 1024×1024. Fontes menores são ampliadas:
 prefira SVG ou PNG de alta resolução para evitar perda de nitidez.
 
 Ícones web recebem margens transparentes quando a fonte não é quadrada.
 Open Graph centraliza a arte, preserva a proporção e preenche o fundo com
 `#111827` no tema dark e `#ffffff` no light. A arte original não é recolorida.
-Sem banner, usa o logo horizontal do mesmo tema e depois o ícone disponível.
+Sem banner, usa o logo horizontal do mesmo tema, depois `logo_square` e por último
+`logo_square_black`. `logo_icon` é usado apenas nos favicons entre as saídas web.
+Favicons na raiz de `web/` exigem `logo_icon`; Android, Apple, `web/icons/` e
+`web/favicon-rounded/` exigem `logo_square`.
+Essas duas fontes não substituem uma à outra.
 Sem fonte compatível, a saída correspondente é omitida com um aviso.
+
+Os favicons em `web/favicon-rounded/` usam `logo_square` com raio de arredondamento
+de 25% do lado. Os cantos ficam transparentes e as curvas têm suavização de bordas.
+A transparência original é preservada. A variante é gerada automaticamente com
+`bun run convert` ou `--only web`.
 
 Os SVGs são rasterizados na resolução de destino. Para resultados portáveis,
 use vetores autocontidos, incorpore imagens e converta textos em curvas:

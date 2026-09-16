@@ -32,14 +32,11 @@ interface ImageOptions {
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 const THEMES = { dark: '#111827', light: '#ffffff' };
 const ICONS = [48, 72, 96, 128, 192, 384, 512];
-const WEB_PNGS: [string, number][] = [
+const SQUARE_PNGS: [string, number][] = [
   ['android-chrome-192x192.png', 192],
   ['android-chrome-512x512.png', 512],
   ['apple-touch-icon-precomposed.png', 180],
   ['apple-touch-icon.png', 180],
-  ['favicon-16x16.png', 16],
-  ['favicon-32x32.png', 32],
-  ['favicon-96x96.png', 96],
   ...ICONS.map((size): [string, number] => [`icons/icon-${size}x${size}.png`, size]),
 ];
 
@@ -107,6 +104,21 @@ async function resize(source: Source, width: number, height: number, { fit = 'co
   return pipeline.toBuffer();
 }
 
+function squarePngs(source: Source, { rounded = false } = {}) {
+  const cache = new Map<number, Buffer>();
+  return async (size: number): Promise<Buffer> => {
+    const cached = cache.get(size);
+    if (cached) return cached;
+    let data = await resize(source, size, size);
+    if (rounded) {
+      const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${size * 0.25}" fill="white"/></svg>`);
+      data = await sharp(data).ensureAlpha().composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
+    }
+    cache.set(size, data);
+    return data;
+  };
+}
+
 /** Converte os arquivos de uma pasta de projeto; não modifica os originais. */
 export async function convertProject(directory: string, { only = 'all' }: ConvertOptions = {}): Promise<ConvertResult> {
   if (!['all', '1024', 'web'].includes(only)) throw new Error('Use only: all, 1024 ou web.');
@@ -125,6 +137,13 @@ export async function convertProject(directory: string, { only = 'all' }: Conver
     await save(path.join(directory, relative), data);
     files.push(relative);
   };
+  const emitFavicons = async (relative: string, pngAt: (size: number) => Promise<Buffer>) => {
+    await outputDirectory(path.join(directory, relative));
+    for (const size of [16, 32, 96]) await emit(`${relative}/favicon-${size}x${size}.png`, await pngAt(size));
+    const frames = [];
+    for (const size of [16, 32, 48]) frames.push({ size, data: await pngAt(size) });
+    await emit(`${relative}/favicon.ico`, encodeIco(frames));
+  };
 
   if (only !== 'web') {
     await outputDirectory(path.join(directory, '1024'));
@@ -135,28 +154,25 @@ export async function convertProject(directory: string, { only = 'all' }: Conver
 
   if (only !== '1024') {
     await outputDirectory(path.join(directory, 'web'));
-    const icon = role('logo_icon') ?? role('logo_square') ?? role('logo_square_black');
+    const icon = role('logo_icon');
+    const square = role('logo_square');
     if (icon) {
-      await outputDirectory(path.join(directory, 'web', 'icons'));
-      const cache = new Map<number, Buffer>();
-      const iconAt = async (size: number): Promise<Buffer> => {
-        const cached = cache.get(size);
-        if (cached) return cached;
-        const data = await resize(icon, size, size);
-        cache.set(size, data);
-        return data;
-      };
-      for (const [file, size] of WEB_PNGS) await emit(`web/${file}`, await iconAt(size));
-      const frames = [];
-      for (const size of [16, 32, 48]) frames.push({ size, data: await iconAt(size) });
-      await emit('web/favicon.ico', encodeIco(frames));
+      await emitFavicons('web', squarePngs(icon));
     } else {
-      warnings.push('Ícones web não gerados: adicione logo_icon, logo_square ou logo_square_black (PNG/SVG).');
+      warnings.push('Favicons não gerados: adicione logo_icon (PNG/SVG).');
+    }
+    if (square) {
+      await outputDirectory(path.join(directory, 'web', 'icons'));
+      const squareAt = squarePngs(square);
+      for (const [file, size] of SQUARE_PNGS) await emit(`web/${file}`, await squareAt(size));
+      await emitFavicons('web/favicon-rounded', squarePngs(square, { rounded: true }));
+    } else {
+      warnings.push('Ícones Android, Apple, web/icons e web/favicon-rounded não gerados: adicione logo_square (PNG/SVG).');
     }
     for (const [theme, background] of Object.entries(THEMES)) {
-      const source = role(`banner_${theme}`) ?? role(`logo_hor_${theme}`) ?? icon;
+      const source = role(`banner_${theme}`) ?? role(`logo_hor_${theme}`) ?? square ?? role('logo_square_black');
       if (!source) {
-        warnings.push(`og-image-${theme}.webp não gerada: adicione banner_${theme}, logo_hor_${theme} ou um ícone.`);
+        warnings.push(`og-image-${theme}.webp não gerada: adicione banner_${theme}, logo_hor_${theme}, logo_square ou logo_square_black.`);
         continue;
       }
       if (!role(`banner_${theme}`)) warnings.push(`og-image-${theme}.webp: usando ${path.basename(source.file)} como alternativa ao banner.`);
